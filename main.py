@@ -83,7 +83,7 @@ if __name__ == '__main__':
         response_code = add_password(args.key, data)
         print(f'response code: {response_code}')
     elif args.action == 'get_passwords':
-        responses = get_passwords(args.key)
+        responses = get_passwords()
         for response in responses:
             pprint.pprint(response)
     elif args.action == 'get_password':
