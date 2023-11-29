@@ -1,90 +1,45 @@
-from password_manager_client.cryptography.aes_cipher import AESCipher
-import pyperclip
-import argparse
-import requests
+import click
 import pprint
-import json
+from password_manager_client.password import passwords_queries
+from password_manager_client.password.password_generator import PasswordGenerator
 
 
-def get_arguments() -> argparse.ArgumentParser.parse_args:
-    parser = argparse.ArgumentParser(description='Client for password managert')
-
-    parser.add_argument('--key', dest='key', required=False,
-                        help='Key to read/write databse')
-
-    parser.add_argument('--action', dest='action', required=True,
-                        help='Action to perform ;')
-
-    parser.add_argument('--title', dest='title', required=False,
-                        help='Action to perform ;')
-    parser.add_argument('--email', dest='email', required=False,
-                        help='Action to perform ;')
-    parser.add_argument('--username', dest='username', required=False,
-                        help='Action to perform ;')
-    parser.add_argument('--password', dest='password', required=False,
-                        help='Action to perform ;')
-    parser.add_argument('--notes', dest='notes', required=False,
-                        help='Action to perform ;')
-
-    parser.add_argument('--id', dest='id', required=False,
-                        help='Action to perform ;')
-
-    args = parser.parse_args()
-    return args
-
-def add_password(key: str, data: dict) -> str:
-    """
-    Add a password to DB. Password is ciphered before being posted
-    @param key: Main key to cipher/decipher password from/to database
-    @param data: dictionnary containings entries to store in DB
-    @return: status code of post request
-    """
-    aes_cipher = AESCipher(key)
-    data['password'] = aes_cipher.encrypt(data['password']).decode()
-    headers = {'accept':'application/json','Content-Type':'application/json'}
-    response = requests.post('http://0.0.0.0:8000/passwords/', json=data, headers=headers)
-    return response.status_code
+@click.group()
+def main():
+    pass
 
 
-def get_passwords() -> requests.Response:
-    """
-    Get all entries from DB. Password are note decrypted
-    @return: json containing all db entries
-    """
-    response = requests.get('http://0.0.0.0:8000/passwords/?skip=0&limit=100')
-    return json.loads(response.text)
+@main.command()
+@click.option("--title", prompt=" Enter a title", type=str)
+@click.option("--email", prompt=" Enter your email", type=str)
+@click.option("--username", prompt=" Enter your username", type=str)
+@click.option("--notes", prompt=" Enter a note", type=str)
+@click.option("--password", default='', prompt=" Enter a password (if not set a password will be generated for you)", type=str)
+@click.option("--key", prompt="key", type=str)
+def add_password_entry(title, email, username, notes, password,key):
+    if password == '':
+        password = PasswordGenerator.generate_password()
 
-def get_password_by_id(id: int, key) -> None:
-    """
-    Get password from its id. Password is decrypted and copied to clipboard
-    @param id: id of password to retrieve
-    @param key: Main key to cipher/decipher password from/to database
-    @return: None
-    """
-    response = requests.get(f'http://0.0.0.0:8000/passwords/ids/{id}')
-    response = json.loads(response.text)
-    aes_cipher = AESCipher(key)
-    password = aes_cipher.decrypt(response['password'].encode())
-    pyperclip.copy(password)
-    print('password copied to clipboard!')
+    data = {'title': title,
+                'username': username,
+                'email': email,
+                'password': password,
+                'notes': notes}
+    ret_code = passwords_queries.add_password(key, data)
+    print(ret_code)
 
-# --action add_password --email toto@toto.com --title test2 --username bob --password 1234 --notes notes --key mysecrectkey
-# --action get_passwords
-# --action get_password --id id
 
-if __name__ == '__main__':
-    args = get_arguments()
-    if args.action == 'add_password':
-        data = {'title': args.title,
-                'username': args.username,
-                'email': args.email,
-                'password': args.password,
-                'notes': args.notes}
-        response_code = add_password(args.key, data)
-        print(f'response code: {response_code}')
-    elif args.action == 'get_passwords':
-        responses = get_passwords()
-        for response in responses:
-            pprint.pprint(response)
-    elif args.action == 'get_password':
-        response = get_password_by_id(args.id, args.key)
+@main.command()
+def get_all_entries():
+    entries = passwords_queries.get_passwords()
+    pprint.pprint(entries)
+
+@main.command()
+@click.option("--password_id", prompt="password id", type=str)
+@click.option("--key", prompt="key", type=str)
+def get_password_by_id(password_id, key):
+    passwords_queries.get_password_by_id(password_id, key)
+
+
+if __name__ == "__main__":
+    main()
