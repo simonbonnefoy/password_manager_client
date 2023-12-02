@@ -24,7 +24,7 @@ def get_passwords() -> requests.Response:
     response = requests.get('http://0.0.0.0:8000/passwords/?skip=0&limit=100')
     return json.loads(response.text)
 
-def get_password_by_id(id: int, key) -> None:
+def get_password_by_id_to_clipboard(id: int, key) -> None:
     """
     Get password from its id. Password is decrypted and copied to clipboard
     @param id: id of password to retrieve
